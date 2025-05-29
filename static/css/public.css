@@ -1,0 +1,55 @@
+.table-content{
+    height: auto;
+  }
+  .table-content .handle-card{
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+
+  }
+  .table-content .handle-card .search{
+    display: flex;
+    width: 82%;
+  }
+  .table-content .tree-table .el-table__header .cell{
+    color: black;
+    font-size: 16px;
+  }
+  .table-content .tree-table{
+    border: 0px solid #e4e7ed;
+  }
+  .table-content .handle-card .el-card{
+    padding-top: 10px;
+  }
+  .table-content .handle-card .handle{
+    flex: 1;
+    text-align:center;
+  }
+  .table-content .handle-card .el-card__body{
+    width: 100%;
+    padding: 10px;
+    display: flex;
+  }
+  .search-content .search-input{
+    max-width: 130px;
+    min-width: 80px;
+  }
+  .search-content .search-popover-btn{
+    text-align: right;
+  }
+
+  .table-content .listorder-input .el-input__inner{
+    text-align: center !important;
+  }
+  .search-content .el-form--inline .el-form-item{
+    margin-right: 10px;
+  }
+  .page-contaner{
+        background: #ffffff;
+        padding: 10px 0;
+        border: 1px solid #ecedee;
+        padding-left: 10px;
+  }
+.el-table__body{
+  font-size: 14px !important;
+}

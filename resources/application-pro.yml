@@ -1,0 +1,26 @@
+pythonstyle:
+  datasource:
+    mysql:
+        # 主库数据源
+        master:
+          host: '127.0.0.1'
+          port: 3306
+          user: 'root'
+          password: '123456'
+          db: 'db_pythonstyle_mixins'
+        # 从库数据源
+        slave:
+          # 从数据源开关
+          host: '127.0.0.1'
+          port: 3306
+          user: 'root'
+          password: '123456'
+          database: 'db_pythonstyle_mixins'
+
+
+    #配置redis数据库
+    redis:
+      host: 127.0.0.1           # Redis 服务器地址
+      port: 6379                # Redis 服务器端口号
+      database: 3               # Redis 数据库编号
+      password: '123456'  # Redis 访问密码

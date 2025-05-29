@@ -1,0 +1,154 @@
+{% include "/public/public_header.html" %}
+<div class="container-fluid" id="app">
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="card col-lg-6">
+                <header class="card-header">
+                    <div class="card-title">个人信息</div>
+                </header>
+                <div class="card-body">
+
+                    <div class="d-flex">
+                        <span>头 像：</span>
+                        <el-upload
+                                class="avatar-uploader"
+                                action="/system/admin/upload_avtor"
+                                name="file"
+                                :show-file-list="false"
+                                :on-success="handleAvatarSuccess"
+                                :before-upload="beforeAvatarUpload"
+                        >
+                            <img v-if="avatarUrl" :src="avatarUrl" class="avatar" width="100"/>
+                            <el-icon v-else class="avatar-uploader-icon">
+                                <Plus/>
+                            </el-icon>
+                        </el-upload>
+                    </div>
+                    <hr>
+                     <el-form :model="form" ref="postFormRef" :rules="rules" label-width="90px">
+                          <el-form-item label="账 号"  prop="username">
+                                <el-input type="text" v-model="form.username" disabled="disabled" />
+                          </el-form-item>
+                          <el-form-item label="昵 称"  prop="nick_name">
+                                <el-input type="text" v-model="form.nick_name" placeholder="输入您的昵称" />
+                          </el-form-item>
+                          <el-form-item label="邮 箱" prop="email" for="email">
+                                <el-input type="email" v-model="form.email" placeholder="请输入正确的邮箱地址" />
+                          </el-form-item>
+                          <el-form-item label="简 介" prop="remark" for="remark">
+                                <el-input type="textarea" v-model="form.remark"></el-input>
+                          </el-form-item>
+                          <el-button type="primary" style="float: right" @click="submitForm">提交</el-button>
+                       </el-form>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% include "/public/public_page.html" %}
+<script type="text/javascript" src="/static/js/api/main.js"></script>
+<script>
+    const {createApp, ref, nextTick} = Vue
+    const {ElMessage, ElMessageBox, ElNotification} = ElementPlus
+    const app = createApp({
+        delimiters: ['{$', '$}'],
+        setup() {
+            const loading = ref(false)
+            const avatarUrl = ref('')
+            const form = ref({
+                username: undefined,
+                avatar: undefined,
+                nick_name: undefined,
+                remark: undefined,
+                email: undefined
+            })
+            const postFormRef = ref()
+            const rules = {
+                nick_name: [{required: true, message: "昵称不能为空", trigger: "blur"}],
+                email: [{required: true, message: "邮箱不能为空", trigger: "blur"}]
+            }
+
+            const handleAvatarSuccess = (res) => {
+                avatarUrl.value = res.data.filepath
+                form.value.avatar = res.data.filepath
+            }
+            const beforeAvatarUpload = (file) => {
+                const isJPG = file.type === 'image/png' || file.type === 'image/jpeg'
+                const isLt2M = file.size / 1024 / 1024 < 2
+
+                if (!isJPG) {
+                  ElMessage({message: '上传头像图片只能是 JPG或PNG格式!', type: 'error', duration: 3 * 1000})
+                }
+                if (!isLt2M) {
+                  ElMessage({message: '上传头像图片大小不能超过 2MB!', type: 'error', duration: 3 * 1000})
+                }
+                return isJPG && isLt2M;
+              }
+
+            const getUserInfo = () =>{
+               getInitData().then( res =>{
+                    avatarUrl.value = res.data.userinfo.avatar
+                    form.value.username = res.data.userinfo.username
+                    form.value.avatar = res.data.userinfo.avatar
+                    form.value.nick_name = res.data.userinfo.nick_name
+                    form.value.remark = res.data.userinfo.remark
+                    form.value.email = res.data.userinfo.email
+               })
+            }
+
+            /** 提交表单 **/
+            const submitForm = () => {
+                if (!postFormRef.value) return
+                postFormRef.value.validate((valid) => {
+                    if (valid) {
+                        editProfile(form.value).then(res => {
+                            ElMessage({message: res.msg, type: 'success', duration: 3 * 1000})
+                        })
+                    }
+                })
+            }
+            getUserInfo()
+            return {
+                loading,
+                form,
+                postFormRef,
+                rules,
+                avatarUrl,
+                handleAvatarSuccess,
+                beforeAvatarUpload,
+                submitForm,
+                getUserInfo
+            }
+        }
+    })
+
+    for ([name, comp] of Object.entries(ElementPlusIconsVue)) {
+        app.component(name, comp);
+    }
+    app.use(ElementPlus, {locale: ElementPlusLocaleZhCn, size: 'default'})
+    app.mount('#app')
+</script>
+<style>
+    .avatar-uploader .el-upload {
+        border: 1px dashed var(--el-border-color);
+        border-radius: 6px;
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+        transition: var(--el-transition-duration-fast);
+    }
+
+    .avatar-uploader .el-upload:hover {
+        border-color: var(--el-color-primary);
+    }
+
+    .el-icon.avatar-uploader-icon {
+        font-size: 18px;
+        color: #8c939d;
+        width: 90px;
+        height: 90px;
+        text-align: center;
+    }
+</style>

@@ -1,0 +1,210 @@
+{% include "/public/public_header.html" %}
+<link rel="stylesheet" type="text/css" href="/static/css/public.css">
+<div class="container-fluid" id="app">
+    <el-scrollbar>
+        <div class="table-content">
+            <el-card class="handle-card">
+                <div class="search">
+                    <el-popover placement="bottom-start" :width="400" trigger="hover">
+                        <template #reference>
+                            <el-button circle><el-icon><Search/></el-icon></el-button>
+                        </template>
+                        <div class="search-content">
+                            <el-form :inline="true" :model="queryParams" ref="searchForm">
+                                <el-form-item label="操作模块" prop="title">
+                                    <el-input class="search-input" v-model="queryParams.title" size="small"
+                                              placeholder="请输入操作用户"/>
+                                </el-form-item>
+                                <el-form-item label="操作状态" prop="status">
+                                    <el-select
+                                            v-model="queryParams.status"
+                                            placeholder="选择状态"
+                                            size="small"
+                                            class="search-input"
+                                            :teleported="false"
+                                    >
+                                        <el-option
+                                                v-for="item in statusOptions"
+                                                :key="item.value"
+                                                :label="item.label"
+                                                :value="item.value"
+                                        />
+                                    </el-select>
+                                </el-form-item>
+                                <div class="search-popover-btn">
+                                    <el-button type="primary" size="small"  @click="handSearch"><el-icon><Search/></el-icon>搜索
+                                    </el-button>
+                                    <el-button size="small" @click="resetForm(searchForm)">重置</el-button>
+                                </div>
+
+                            </el-form>
+                        </div>
+                    </el-popover>
+                </div>
+                <div class="handle">
+                    <el-button @click="getDataList"><el-icon><Refresh/></el-icon></el-button>
+                </div>
+            </el-card>
+            <el-table class="tree-table"
+                      v-loading="loading"
+                      :data="tableData"
+                      style="width: 100%; margin-bottom: 0px; font-size: 15px;"
+                      min-height="500"
+                      :border="true"
+            >
+                <el-table-column :prop="item.prop" :label="item.label" :align="item.align" :width="item.width"
+                                 v-for="(item, index) in columnData" :key="index">
+                    <template #default="scope" v-if="item.prop ==='action'">
+                        <el-button type="warning" size="small" :icon="View" @click="handleDetail(scope.row)">详情
+                        </el-button>
+                    </template>
+                    <template #default="scope" v-if="item.prop ==='business_type'">
+                        <span v-if="scope.row.business_type =='0'">其他</span>
+                        <span v-if="scope.row.business_type =='1'">新增</span>
+                        <span v-if="scope.row.business_type =='2'">修改</span>
+                        <span v-if="scope.row.business_type =='3'">删除</span>
+                    </template>
+                    <template #default="scope" v-if="item.prop ==='op_type'">
+                        <span v-if="scope.row.op_type =='0'">其他</span>
+                        <span v-if="scope.row.op_type =='1'">后台用户</span>
+                        <span v-if="scope.row.op_type =='2'">移动端用户</span>
+                    </template>
+                    <template #default="scope" v-if="item.prop === 'status'">
+                        <span v-if="scope.row.status =='0'">操作成功</span>
+                        <span v-if="scope.row.status =='1'">操作异常</span>
+                    </template>
+                </el-table-column>
+            </el-table>
+            <div class="page-contaner">
+                <el-pagination
+                        v-model:current-page="queryParams.pageNum"
+                        v-model:page-size="queryParams.pageSize"
+                        :page-sizes="[10, 15, 20, 30, 40, 50, 100]"
+                        :small="small"
+                        :disabled="disabled"
+                        :background="background"
+                        layout="total, sizes, prev, pager, next, jumper"
+                        :total="total"
+                        @size-change="handleSizeChange"
+                        @current-change="handleCurrentChange"
+                />
+            </div>
+        </div>
+
+    </el-scrollbar>
+</div>
+{% include "/public/public_page.html" %}
+<script type="text/javascript" src="/static/js/api/system/operation_log.js"></script>
+<script>
+    const {createApp, ref, nextTick} = Vue
+    const {ElMessage, ElMessageBox, ElNotification} = ElementPlus
+    const app = createApp({
+        delimiters: ['{$', '$}'],
+        setup() {
+
+            const statusOptions = [
+                {label: '操作正常', value: '0'},
+                {label: '操作异常', value: '1'}
+            ]
+            const searchForm = ref()
+            const tableData = ref([])
+            const loading = ref(false)
+            const background = ref()
+            const total = ref(0)
+            const queryParams = ref({
+                pageNum: 1,
+                pageSize: 10,
+                title: '',
+                status: ''
+            })
+
+            /** 搜索操作 */
+            const handSearch = () => {
+                getDataList()
+            }
+
+            /** 搜索表单重置 */
+            const resetForm = (FormEL) => {
+                FormEL.resetFields();
+                getDataList()
+            }
+
+            /** 获取列表数据 */
+            const getDataList = async () => {
+                loading.value = true
+                const res = await getOperationLogList(queryParams.value);
+                if (res.code === 200) {
+                    tableData.value = res.data.list
+                    total.value = res.data.total
+                }
+                loading.value = false
+            }
+             //分页
+            const handleSizeChange = (number) => {
+                if (queryParams.pageNum * number > total.value) {
+                    queryParams.pageNum = 1
+                    getDataList()
+                }
+            }
+            const handleCurrentChange = (number) => {
+                queryParams.pageNum = number
+                getDataList()
+            }
+             /** 多选 */
+            const handleSelectionChange = (val) => {
+                multipleSelection.value = val
+            }
+
+            getDataList()
+
+            const columnData = [
+                {label: 'ID', prop: 'id', width: '80', align: 'center'},
+                {label: '模块', prop: 'title', width: '120', align: 'center'},
+                {label: '业务类型', prop: 'business_type', align: 'center'},
+                {label: '请求方式', prop: 'request_method', align: 'center'},
+                {label: '操作人员', prop: 'op_name', align: 'center'},
+                {label: '请求URL', prop: 'op_url', align: 'center'},
+                {label: '错误消息', prop: 'error_msg', align: 'center'},
+                {label: '创建时间', prop: 'create_time', align: 'center'},
+                {label: '管理', prop: 'action', width: '150', align: 'center'},
+            ]
+
+
+            return {
+                loading,
+                tableData,
+                statusOptions,
+                queryParams,
+                total,
+                columnData,
+                background,
+                searchForm,
+                resetForm,
+                handSearch,
+                handleSizeChange,
+                handleCurrentChange,
+                handleSelectionChange,
+                getDataList
+            }
+        }
+    })
+
+    for ([name, comp] of Object.entries(ElementPlusIconsVue)) {
+        app.component(name, comp);
+    }
+    app.use(ElementPlus, {locale: ElementPlusLocaleZhCn, size: 'default'})
+    app.mount('#app')
+</script>
+<style>
+    .el-select {
+        min-width: 180px;
+    }
+
+    .search-content .el-select {
+        min-width: 105px;
+    }
+
+    .el-pagination .el-select {
+        min-width: auto;
+    }
+</style>

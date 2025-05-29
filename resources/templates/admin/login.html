@@ -1,0 +1,297 @@
+<html>
+<head>
+    <meta charset="UTF-8"/>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=0, minimal-ui">
+    <meta name="author" content="yinq">
+    <title>登录 - 用户中心</title>
+    <link rel="icon" href="/static/images/favicon.ico">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-touch-fullscreen" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="stylesheet" type="text/css" href="/static/css/materialdesignicons.min.css">
+    <link rel="stylesheet" type="text/css" href="/static/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="/static/css/animate.min.css">
+    <link rel="stylesheet" type="text/css" href="/static/css/style.min.css">
+    <!-- 引入样式 -->
+    <link rel="stylesheet" href="/static/css/element-plus/dist/index.css"/>
+    <style>
+        [v-cloak] {
+            display: none;
+        }
+
+        .center-vh {
+            background: linear-gradient(20deg, #007bff, #00d4ff, #007bff);
+        }
+
+        .card {
+            width: 850px;
+            display: flex;
+            flex-direction: row;
+        }
+
+        .card .login-header {
+            font-size: 1.0rem;
+        }
+
+        .login-left {
+            padding: 2rem;
+            border-radius: 12px;
+            width: 440px;
+            background: #18244F;
+            flex: 1; /* 各自占据相等空间 */
+        }
+        .login-left .copyright{ font-size: 0.7rem;}
+        .login-left .copyright a{ color: #5c636a }
+
+        .login-right {
+            padding: 2rem;
+            width: 440px;
+            flex: 1; /* 各自占据相等空间 */
+        }
+
+        .login-img {
+            animation: bounce 5s infinite; /* 添加跳动动画 */
+        }
+
+        /* 跳动效果 */
+        @keyframes bounce {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-40px); /* 向上移动的高度 */
+            }
+        }
+
+        .signin-form .has-feedback {
+            position: relative;
+        }
+
+        .code-image {
+            margin-left: 10px;
+        }
+
+        .login-image-code {
+            border: 1px solid #0c63e4;
+        }
+
+        .signin-form .has-feedback .form-control {
+            padding-left: 36px;
+        }
+
+        .login-header {
+            text-align: center;
+        }
+
+        .signin-form .has-feedback .mdi {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: auto;
+            width: 36px;
+            height: 36px;
+            line-height: 36px;
+            z-index: 4;
+            color: #dcdcdc;
+            display: block;
+            text-align: center;
+            pointer-events: none;
+        }
+
+        .signin-form .has-feedback.row .mdi {
+            left: 15px;
+        }
+    </style>
+</head>
+
+<body class="center-vh">
+<div id="app" v-cloak>
+    <div class="card card-shadowed mb-0 mr-2 ml-2">
+        <div class="login-left">
+            <img src="/static/images/login_left.png" class="login-img" width="500">
+            {% include "/admin/copyright.html" %}
+        </div>
+        <div class="login-right">
+            <el-form ref="ruleFormRef" :model="loginForm" :rules="loginRules" class="login-form">
+                <h3 class="login-header"><img src="/static/images/logo.svg" width="200"><br><br>用户中心</h3>
+                <el-form-item prop="username">
+                    <el-input
+                            v-model="loginForm.username"
+                            type="text"
+                            size="large"
+                            autocomplete="off"
+                            placeholder="账号"
+                    >
+                        <template #prefix>
+                            <el-icon>
+                                <Avatar/>
+                            </el-icon>
+                        </template>
+                    </el-input>
+                </el-form-item>
+                <el-form-item prop="password">
+                    <el-input
+                            v-model="loginForm.password"
+                            type="password"
+                            size="large"
+                            autocomplete="off"
+                            placeholder="密码"
+                            @keyup.enter="submitLoginForm"
+                    >
+                        <template #prefix>
+                            <el-icon>
+                                <Lock/>
+                            </el-icon>
+                        </template>
+                    </el-input>
+                </el-form-item>
+                <el-form-item prop="code" v-if="captchaEnabled">
+                    <el-input
+                            v-model.number="loginForm.code"
+                            size="large"
+                            auto-complete="off"
+                            placeholder="验证码"
+                            style="width: 63%"
+                            @keyup.enter="submitLoginForm"
+                    >
+                        <template #prefix>
+                            <el-icon>
+                                <Stamp/>
+                            </el-icon>
+                        </template>
+                    </el-input>
+                    <div class="login-imagecode">
+                        <div class="code-image">
+                            <img :src="codeUrl" @click="getCode" class="login-image-code"/>
+                        </div>
+
+                    </div>
+                </el-form-item>
+
+                <el-form-item style="width:100%; padding-top: 20px;">
+                    <el-button
+                            :loading="loading"
+                            size="large"
+                            type="primary"
+                            style="width:100%;"
+                            @click="submitLoginForm()"
+                    >
+                        <span v-if="!loading">登 录</span>
+                        <span v-else>登 录 中...</span>
+                    </el-button>
+                </el-form-item>
+
+            </el-form>
+        </div>
+
+    </div>
+
+</div>
+{% include "/public/public_page.html" %}
+<script type="text/javascript" src="/static/js/api/main.js"></script>
+
+<script>
+    const {createApp, ref, toRefs} = Vue
+    const {ElMessage, ElMessageBox, ElNotification} = ElementPlus
+    const app = createApp({
+        delimiters: ['{$', '$}'],
+        setup() {
+            const dialogVisible = ref(false)
+            const loading = ref(false)
+            const ruleFormRef = ref(null)
+            const codeUrl = ref("")
+            const captchaEnabled = ref(true)
+            const loginRules = {
+                username: [{required: true, message: '请输入您的账号名称', trigger: 'blur'}],
+                password: [
+                    {required: true, message: '请输入您的密码', trigger: 'blur'},
+                    {min: 6, max: 20, message: '密码长度不得小于6位数，且需要大小写数字组合', trigger: 'blur'}
+                ],
+                code: [{required: true, message: '请输入验证码', trigger: 'blur'}]
+            }
+
+            const loginForm = ref({
+                username: "admin",
+                password: "admin123",
+                code: "",
+                uuid: ""
+            });
+
+            //测试弹窗
+            const handleClick = () => {
+                dialogVisible.value = true
+            }
+
+            //获取验证码
+            const getCode = () => {
+                getImgCode().then(res => {
+                    captchaEnabled.value = res.data.captchaEnabled === undefined ? true : res.data.captchaEnabled
+                    if (captchaEnabled.value) {
+                        codeUrl.value = "data:image/gif;base64," + res.data.img;
+                        loginForm.value.uuid = res.data.uuid;
+                    }
+                })
+            }
+
+            const submitLoginForm = () => {
+                loading.value = true
+                if (!ruleFormRef.value) return
+                ruleFormRef.value.validate((valid) => {
+                    if (valid) {
+                        // 调用action的登录方法
+                        const username = loginForm.value.username.trim()
+                        const password = loginForm.value.password
+                        const code = loginForm.value.code
+                        const uuid = loginForm.value.uuid
+                        login(username, password, code, uuid).then(res => {
+                            if (res.code === 200) {
+                                setToken(res.data.token)
+                                ElMessage({message: res.msg, type: 'success', duration: 5 * 1000})
+                                setTimeout(function () {
+                                    location.href = '/system/admin/init';
+                                }, 1500);
+                            } else {
+                                loading.value = false;
+                                // 重新获取验证码
+                                ElMessage({message: res.msg, type: 'error', duration: 5 * 1000})
+                                if (captchaEnabled.value) {
+                                    getCode();
+                                }
+                            }
+                        })
+
+                    } else {
+                        loading.value = false
+                        return false
+                    }
+                })
+                loading.value = false
+            }
+            getCode()
+            return {
+                loading,
+                dialogVisible,
+                ruleFormRef,
+                captchaEnabled,
+                loginForm,
+                loginRules,
+                codeUrl,
+                handleClick,
+                submitLoginForm,
+                getCode
+            }
+        }
+    })
+
+    for ([name, comp] of Object.entries(ElementPlusIconsVue)) {
+        app.component(name, comp);
+    }
+    app.use(ElementPlus, {locale: ElementPlusLocaleZhCn, size: 'default'})
+
+    app.mount('#app')
+
+</script>
+
+</body>
+</html>

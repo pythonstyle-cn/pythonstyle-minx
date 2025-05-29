@@ -1,0 +1,463 @@
+{% include "/public/public_header.html" %}
+<link rel="stylesheet" type="text/css" href="/static/css/public.css">
+<div class="container-fluid" id="app">
+    <el-scrollbar>
+        <div class="table-content">
+            <el-card class="handle-card">
+                <div class="search">
+                    <el-popover placement="bottom-start" :width="400" trigger="hover">
+                        <template #reference>
+                            <el-button circle>
+                                <el-icon>
+                                    <Search/>
+                                </el-icon>
+                            </el-button>
+                        </template>
+                        <div class="search-content">
+                            <el-form :inline="true" :model="queryParams" ref="searchForm">
+                                <el-form-item label="名 称" prop="role_name">
+                                    <el-input class="search-input" v-model="queryParams.role_name" size="small"
+                                              placeholder="请输入角色名称"/>
+                                </el-form-item>
+                                <el-form-item label="状 态" prop="status">
+                                    <el-select
+                                            v-model="queryParams.status"
+                                            placeholder="选择状态"
+                                            size="small"
+                                            class="search-input"
+                                            :teleported="false"
+                                    >
+                                        <el-option
+                                                v-for="item in statusOptions"
+                                                :key="item.value"
+                                                :label="item.label"
+                                                :value="item.value"
+                                        />
+                                    </el-select>
+                                </el-form-item>
+                                <div class="search-popover-btn">
+                                    <el-button type="primary" size="small" @click="handSearch">
+                                        <el-icon>
+                                            <Search/>
+                                        </el-icon>
+                                        搜索
+                                    </el-button>
+                                    <el-button size="small" @click="resetForm(searchForm)">重置</el-button>
+                                </div>
+
+                            </el-form>
+                        </div>
+                    </el-popover>
+                </div>
+                <div class="handle">
+                    <el-button type="primary" v-permission="['system:role:role_add']" @click="handleAdd">
+                        <el-icon>
+                            <Plus/>
+                        </el-icon>
+                        新增
+                    </el-button>
+
+                    <el-button @click="getDataList">
+                        <el-icon>
+                            <Refresh/>
+                        </el-icon>
+                    </el-button>
+                </div>
+            </el-card>
+            <el-table
+                    v-loading="loading"
+                    :data="tableData"
+                    style="width: 100%; margin-bottom: 0px; font-size: 15px;"
+                    row-key="role_id"
+                    min-height="500"
+                    :default-expand-all="expand"
+                    :border="true"
+            >
+
+                <el-table-column :prop="item.prop" :label="item.label" :align="item.align" :width="item.width"
+                                 v-for="(item, index) in columnData" :key="index">
+                    <template #default="data" v-if="item.prop === 'status'">
+                        <el-switch v-model="data.row.status"
+                                   active-value="0"
+                                   inactive-value="1"
+                                   inline-prompt
+                                   active-text="启用"
+                                   inactive-text="禁用"
+                                   style="--el-switch-on-color: #409eff; --el-switch-off-color: #ff4949"
+                                   v-permission="['system:role:update_status']"
+                                   @change="handleChangeStatus(data.row)"/>
+                    </template>
+                    <template #default="scope" v-if="item.prop ==='action'">
+                        <template v-if="scope.row.role_id > 1">
+                            <!-- <el-button type="primary" size="small" :icon="Lock" title="角色权限">权限</el-button> -->
+                            <el-button type="warning" size="small"
+                                       v-permission="['system:role:role_update']" @click="handleUpdate(scope.row)">
+                                <el-icon>
+                                    <Edit/>
+                                </el-icon>
+                                修改
+                            </el-button>
+                            <el-popconfirm
+                                    title="确认删除记录吗?"
+                                    @confirm="handDelete(scope.row)">
+                                <template #reference>
+                                    <el-button type="danger" size="small"
+                                               v-permission="['system:role:role_delete']" title="删除">
+                                        <el-icon>
+                                            <Delete/>
+                                        </el-icon>
+                                        删除
+                                    </el-button>
+                                </template>
+                            </el-popconfirm>
+                        </template>
+                    </template>
+                    <template #default="data" v-if="item.prop === 'listorder'">
+                        <el-input class="listorder-input" type="number" v-permission="['system:role:update_listorder']"
+                                  v-model="data.row.listorder" @change="handleChangeListOrder(data.row)"/>
+                    </template>
+
+                </el-table-column>
+            </el-table>
+            <div class="page-contaner">
+                <el-pagination
+                        v-model:current-page="queryParams.pageNum"
+                        v-model:page-size="queryParams.pageSize"
+                        :page-sizes="[10, 15, 20, 30, 40, 50, 100]"
+                        :small="small"
+                        :disabled="disabled"
+                        :background="background"
+                        layout="total, sizes, prev, pager, next, jumper"
+                        :total="total"
+                        @size-change="handleSizeChange"
+                        @current-change="handleCurrentChange"
+                />
+            </div>
+        </div>
+        <!--添加修改弹框-->
+        <el-dialog v-model="dialogFormVisible" :title="title" :before-close="getDataList" width="500">
+            <el-form :model="form" ref="postFormRef" :rules="rules" label-width="90px">
+                <el-form-item label="角色名称" prop="role_name">
+                    <el-input v-model="form.role_name" autocomplete="off"/>
+                </el-form-item>
+                <el-form-item label="岗位排序">
+                    <el-input-number v-model="form.listorder" controls-position="right"/>
+                </el-form-item>
+                <el-form-item label="岗位状态">
+                    <el-radio-group v-model="form.status">
+                        <el-radio value="0">开启</el-radio>
+                        <el-radio value="1">禁用</el-radio>
+                    </el-radio-group>
+                </el-form-item>
+                <el-form-item label="备注">
+                    <el-input v-model="form.remark" type="textarea"/>
+                </el-form-item>
+                <el-form-item label="角色权限">
+                    <el-tree
+                            ref="treeMenuRef"
+                            :data="dataOptions"
+                            accordion
+                            node-key="menu_id"
+                            :props="defaultProps"
+                            :default-checked-keys="menu_ids"
+                            show-checkbox
+                            @check="getCheckedKeys"
+                            style="border: 1px solid #409eff; width: 100%;"
+                    />
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <div class="dialog-footer">
+                    <el-button @click="closeDialogFormVisible">取消</el-button>
+                    <el-button type="primary" v-permission="['system:role:role_add']" @click="submitDialogForm">
+                        提交
+                    </el-button>
+                </div>
+            </template>
+        </el-dialog>
+    </el-scrollbar>
+</div>
+
+{% include "/public/public_page.html" %}
+<script type="text/javascript" src="/static/js/api/system/role.js"></script>
+<script type="text/javascript" src="/static/js/api/system/menu.js"></script>
+<script>
+    const {createApp, ref, toRefs} = Vue
+    const {ElMessage, ElMessageBox, ElNotification} = ElementPlus
+    const app = createApp({
+        delimiters: ['{$', '$}'],
+        setup() {
+            const dialogFormVisible = ref(false)
+            const loading = ref(false)
+            const searchForm = ref()
+            const tableData = ref([])
+            const dataOptions = ref([])
+            const menu_ids = ref([])
+            const treeMenuRef = ref()
+            const half_checked_ids = ref([])
+            const title = ref('')
+            const form = ref({})
+            const postFormRef = ref()
+
+            const dataPostOptions = ref([])
+            const isUpdateHandle = ref(false)
+
+            const rules = {
+                role_name: [{required: true, message: "角色名称不能为空", trigger: "blur"}],
+            }
+
+            const defaultProps = {
+                children: 'children',
+                label: 'menu_name',
+            }
+
+            const statusOptions = [
+                {
+                    label: '启用',
+                    value: '0'
+                }, {
+                    label: '禁用',
+                    value: '1'
+                },
+            ]
+
+            const total = ref(0)
+            const disabled = ref(false)
+            const background = ref(false)
+            const queryParams = ref({
+                pageNum: 1,
+                pageSize: 20,
+                role_name: '',
+                status: ''
+            })
+
+            const columnData = [
+                {label: 'ID', prop: 'role_id', width: '80', align: 'center'},
+                {label: '排序', prop: 'listorder', width: '80', align: 'center'},
+                {label: '角色名称', prop: 'role_name', align: 'center'},
+                {label: '状态', prop: 'status', align: 'center'},
+                {label: '创建时间', prop: 'create_time', align: 'center'},
+                {label: '备注', prop: 'remark', align: 'center'},
+                {label: '管理', prop: 'action', width: '260', align: 'center'},
+            ]
+
+
+            //分页
+            const handleSizeChange = (number) => {
+                if (queryParams.pageNum * number > total.value) {
+                    queryParams.pageNum = 1
+                    getDataList()
+                }
+            }
+            const handleCurrentChange = (number) => {
+                queryParams.pageNum = number
+                getDataList()
+            }
+
+
+            /**删除操作 */
+            const handDelete = async (params) => {
+                let param = {'role_id': params.role_id}
+                const res = await deleteRoleData(param);
+                if (res.code === 200) {
+                    ElMessage({message: res.msg, type: 'success', duration: 3 * 1000})
+                    getDataList()
+                }
+            }
+            /**状态操作 */
+            const handleChangeStatus = async (val) => {
+                const res = await updateRoleStatusData(val);
+                if (res.code === 200) {
+                    ElMessage({message: res.msg, type: 'success', duration: 3 * 1000})
+                    getDataList()
+                }
+            }
+
+            //获取选中的权限值
+            const getCheckedKeys = (leafOnly, includeHalfChecked) => {
+                menu_ids.value = includeHalfChecked.checkedKeys
+                half_checked_ids.value = includeHalfChecked.halfCheckedKeys
+            }
+
+            /**搜索操作 */
+            const handSearch = () => {
+                getDataList()
+            }
+
+            /** 重置表单 */
+            const resetForm = (FormEL) => {
+                FormEL.resetFields();
+                getDataList()
+            }
+
+            /** 取消按钮 */
+            const closeDialogFormVisible = () => {
+                dialogFormVisible.value = false;
+                reset();
+            }
+            /**操作排序 */
+            const handleChangeListOrder = async (val) => {
+                const res = await updateRoleListorderData(val);
+                if (res.code === 200) {
+                    getDataList()
+                }
+            }
+            /** 表单重置 */
+            const reset = () => {
+                form.value = {
+                    role_id: undefined,
+                    role_name: undefined,
+                    listorder: 1,
+                    status: '0',
+                    remark: undefined
+                }
+            }
+
+            /** 新增按钮操作 */
+            const handleAdd = () => {
+                reset();
+                menu_ids.value = []
+                getPublicMenuList().then(response => {
+                    dataOptions.value = response.data
+                    dialogFormVisible.value = true;
+                    title.value = "添加角色"
+                });
+
+            }
+            /** 修改按钮操作 */
+            const handleUpdate = (row) => {
+                reset();
+                const role_id = row.role_id
+                const menu_checked = ref([])
+                getRoleInfoData({role_id: role_id}).then(response => {
+                    form.value = response.data.role_info
+                    menu_checked.value = response.data.menu_ids
+                })
+                getPublicMenuList().then(response => {
+                    dataOptions.value = response.data
+                    const ids = getIdsByPid(response.data, 0)
+                    dialogFormVisible.value = true
+                    title.value = "修改角色"
+                    menu_ids.value = filterOutExistingValues(menu_checked.value, ids)
+                })
+
+            }
+
+            /*拿到顶级id*/
+            const getIdsByPid = (data) => {
+                var ids = [];
+                data.forEach(node => {
+                    if (node.children && node.children.length > 0) {
+                        ids.push(node.menu_id); // 如果当前节点有 children，则将其 id 加入结果数组
+                        // 递归处理子节点
+                        ids = ids.concat(getIdsByPid(node.children));
+                    }
+                })
+                return ids
+            }
+
+            /**过滤掉顶级 */
+            const filterOutExistingValues = (arr1, arr2) => {
+                const res = arr1.filter(value => !arr2.includes(value));
+                return res
+            }
+
+            /** 提交对话框表单 **/
+            const submitDialogForm = () => {
+                if (!postFormRef.value) return
+                postFormRef.value.validate((valid) => {
+                    if (form.value.menu_ids == undefined && menu_ids.value.length == 0) {
+                        valid = false
+                        ElMessage({message: '角色权限不能为空！', type: 'error', duration: 3 * 1000})
+                    }
+                    if (valid) {
+                        form.value.menu_ids = [...menu_ids.value, ...half_checked_ids.value]
+                        if (form.value.role_id != undefined || form.value.role_id > 0) {
+                            updateRoleData(form.value).then(res => {
+                                ElMessage({message: res.msg, type: 'success', duration: 3 * 1000})
+                                getDataList()
+                            })
+                        } else {
+                            addRoleData(form.value).then(res => {
+                                ElMessage({message: res.msg, type: 'success', duration: 3 * 1000})
+                                getDataList()
+                            })
+                        }
+                    }
+                })
+            }
+
+            /**获取列表 */
+            const getDataList = async () => {
+                loading.value = true
+                if (dialogFormVisible.value) dialogFormVisible.value = false
+                const res = await getRoleList(queryParams.value);
+                if (res.code === 200) {
+                    tableData.value = res.data.list
+                    total.value = res.data.total
+                }
+                loading.value = false
+            }
+
+            getDataList()
+
+            return {
+                loading,
+                dialogFormVisible,
+                total,
+                statusOptions,
+                tableData,
+                columnData,
+                queryParams,
+                disabled,
+                background,
+                rules,
+                title,
+                form,
+                defaultProps,
+                menu_ids,
+                half_checked_ids,
+                dataOptions,
+                postFormRef,
+                isUpdateHandle,
+                searchForm,
+                handleUpdate,
+                resetForm,
+                handleSizeChange,
+                handleCurrentChange,
+                closeDialogFormVisible,
+                handleChangeListOrder,
+                handleChangeStatus,
+                reset,
+                handDelete,
+                handleAdd,
+                handSearch,
+                submitDialogForm,
+                filterOutExistingValues,
+                getCheckedKeys,
+                getDataList
+            }
+        }
+    })
+
+    for ([name, comp] of Object.entries(ElementPlusIconsVue)) {
+        app.component(name, comp);
+    }
+    app.use(ElementPlus, {locale: ElementPlusLocaleZhCn, size: 'default'})
+    app.mount('#app')
+</script>
+<style>
+    .el-select {
+        min-width: 180px;
+    }
+
+    .search-content .el-select {
+        min-width: 105px;
+    }
+
+    .el-pagination .el-select {
+        min-width: auto;
+    }
+</style>
+</body>
+</html>
